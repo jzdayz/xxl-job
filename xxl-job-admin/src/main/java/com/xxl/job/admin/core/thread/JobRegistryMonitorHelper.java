@@ -37,6 +37,7 @@ public class JobRegistryMonitorHelper {
 						List<XxlJobGroup> groupList = XxlJobAdminConfig.getAdminConfig().getXxlJobGroupDao().findByAddressType(0);
 						if (groupList!=null && !groupList.isEmpty()) {
 
+							// 移除数据库中注册时间离现在时间大于90秒的执行器 (执行器会定时向admin进行注册)
 							// remove dead address (admin/executor)
 							XxlJobAdminConfig.getAdminConfig().getXxlJobRegistryDao().removeDead(RegistryConfig.DEAD_TIMEOUT);
 

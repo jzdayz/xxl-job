@@ -132,11 +132,15 @@ public class JobLogController {
 		return "joblog/joblog.detail";
 	}
 
+	/**
+	 *  执行日志查询
+	 */
 	@RequestMapping("/logDetailCat")
 	@ResponseBody
 	public ReturnT<LogResult> logDetailCat(String executorAddress, long triggerTime, long logId, int fromLineNum){
 		try {
 			ExecutorBiz executorBiz = XxlJobScheduler.getExecutorBiz(executorAddress);
+			// rpc获取日志信息
 			ReturnT<LogResult> logResult = executorBiz.log(triggerTime, logId, fromLineNum);
 
 			// is end
