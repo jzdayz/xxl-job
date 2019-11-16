@@ -36,6 +36,7 @@ public class JobScheduleHelper {
     public void start(){
 
         // schedule thread
+        // 任务调度线程
         scheduleThread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -74,10 +75,12 @@ public class JobScheduleHelper {
                             for (XxlJobInfo jobInfo: scheduleList) {
 
                                 // 时间轮刻度计算
+                                // 这里任务已经过期了，超时了，小于了当前时间+5s
                                 if (nowTime > jobInfo.getTriggerNextTime() + PRE_READ_MS) {
                                     // 过期超5s：本地忽略，当前时间开始计算下次触发时间
 
                                     // fresh next
+                                    // 直接为job设置下次触发时间
                                     jobInfo.setTriggerLastTime(jobInfo.getTriggerNextTime());
                                     jobInfo.setTriggerNextTime(
                                             new CronExpression(jobInfo.getJobCron())
@@ -92,6 +95,7 @@ public class JobScheduleHelper {
                                     long nextTime = cronExpression.getNextValidTimeAfter(new Date()).getTime();
 
                                     // 1、trigger
+                                    // 调度线程直接触发
                                     JobTriggerPoolHelper.trigger(jobInfo.getId(), TriggerTypeEnum.CRON, -1, null, null);
                                     logger.debug(">>>>>>>>>>> xxl-job, shecule push trigger : jobId = " + jobInfo.getId() );
 
@@ -205,6 +209,7 @@ public class JobScheduleHelper {
 
 
         // ring thread
+        // 从队列中获取任务，进行触发
         ringThread = new Thread(new Runnable() {
             @Override
             public void run() {

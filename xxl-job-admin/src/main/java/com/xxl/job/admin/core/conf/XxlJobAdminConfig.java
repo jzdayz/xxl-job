@@ -41,7 +41,6 @@ public class XxlJobAdminConfig implements InitializingBean{
     private String emailUserName;
 
     // dao, service
-
     @Resource
     private XxlJobLogDao xxlJobLogDao;
     @Resource
