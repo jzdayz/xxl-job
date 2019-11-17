@@ -16,6 +16,9 @@ import java.util.concurrent.TimeUnit;
 /**
  * job registry instance
  * @author xuxueli 2016-10-02 19:10:24
+ *
+ *
+ *  注册信息处理类
  */
 public class JobRegistryMonitorHelper {
 	private static Logger logger = LoggerFactory.getLogger(JobRegistryMonitorHelper.class);
@@ -28,12 +31,16 @@ public class JobRegistryMonitorHelper {
 	private Thread registryThread;
 	private volatile boolean toStop = false;
 	public void start(){
+		// 处理注册信息的后台线程
+		// 1.移除过期的执行器
+		// 2.更新jobGroup的ipList
 		registryThread = new Thread(new Runnable() {
 			@Override
 			public void run() {
 				while (!toStop) {
 					try {
 						// auto registry group
+						// 自动注册的job组
 						List<XxlJobGroup> groupList = XxlJobAdminConfig.getAdminConfig().getXxlJobGroupDao().findByAddressType(0);
 						if (groupList!=null && !groupList.isEmpty()) {
 
@@ -42,7 +49,9 @@ public class JobRegistryMonitorHelper {
 							XxlJobAdminConfig.getAdminConfig().getXxlJobRegistryDao().removeDead(RegistryConfig.DEAD_TIMEOUT);
 
 							// fresh online address (admin/executor)
+							// appName -> list(executor address)
 							HashMap<String, List<String>> appAddressMap = new HashMap<String, List<String>>();
+							// 查询出存活的注册执行器
 							List<XxlJobRegistry> list = XxlJobAdminConfig.getAdminConfig().getXxlJobRegistryDao().findAll(RegistryConfig.DEAD_TIMEOUT);
 							if (list != null) {
 								for (XxlJobRegistry item: list) {
@@ -62,6 +71,7 @@ public class JobRegistryMonitorHelper {
 							}
 
 							// fresh group address
+							// 更新组的信息   组下面对应的ip list
 							for (XxlJobGroup group: groupList) {
 								List<String> registryList = appAddressMap.get(group.getAppName());
 								String addressListStr = null;
@@ -74,6 +84,7 @@ public class JobRegistryMonitorHelper {
 									addressListStr = addressListStr.substring(0, addressListStr.length()-1);
 								}
 								group.setAddressList(addressListStr);
+								//
 								XxlJobAdminConfig.getAdminConfig().getXxlJobGroupDao().update(group);
 							}
 						}
