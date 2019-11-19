@@ -84,6 +84,7 @@ public class JobThread extends Thread{
 
     /**
      * is running job
+	 * 正在跑job || 有触发的调度
      * @return
      */
     public boolean isRunningOrHasQueue() {

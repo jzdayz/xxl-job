@@ -48,6 +48,7 @@ public class JobTriggerPoolHelper {
 
 
     // job timeout count
+    // 记录 1970.1.1 到 当前时间的分钟
     private volatile long minTim = System.currentTimeMillis()/60000;     // ms > min
     private volatile ConcurrentMap<Integer, AtomicInteger> jobTimeoutCountMap = new ConcurrentHashMap<>();
 
@@ -60,6 +61,8 @@ public class JobTriggerPoolHelper {
         // choose thread pool
         ThreadPoolExecutor triggerPool_ = fastTriggerPool;
         AtomicInteger jobTimeoutCount = jobTimeoutCountMap.get(jobId);
+        // 如果在同一分钟数，调度时间大于500ms的次数大于10次，那么用
+        // 慢线程池，进行调度
         if (jobTimeoutCount!=null && jobTimeoutCount.get() > 10) {      // job-timeout 10 times in 1 min
             triggerPool_ = slowTriggerPool;
         }
@@ -80,14 +83,18 @@ public class JobTriggerPoolHelper {
 
                     // check timeout-count-map
                     long minTim_now = System.currentTimeMillis()/60000;
+                    // 如果现在时间记录的分钟数和之前保存的分钟数不一致
                     if (minTim != minTim_now) {
+                        // 赋值新的分钟数
                         minTim = minTim_now;
+                        // 清除统计
                         jobTimeoutCountMap.clear();
                     }
 
                     // incr timeout-count-map
                     long cost = System.currentTimeMillis()-start;
                     if (cost > 500) {       // ob-timeout threshold 500ms
+                        // 调度时间大于500ms，进行慢调度统计
                         AtomicInteger timeoutCount = jobTimeoutCountMap.putIfAbsent(jobId, new AtomicInteger(1));
                         if (timeoutCount != null) {
                             timeoutCount.incrementAndGet();

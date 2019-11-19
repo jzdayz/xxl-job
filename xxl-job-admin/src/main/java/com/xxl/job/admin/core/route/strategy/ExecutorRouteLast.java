@@ -11,6 +11,9 @@ import java.util.List;
  */
 public class ExecutorRouteLast extends ExecutorRouter {
 
+    /**
+     *  直接给到最后一个地址
+     */
     @Override
     public ReturnT<String> route(TriggerParam triggerParam, List<String> addressList) {
         return new ReturnT<String>(addressList.get(addressList.size()-1));

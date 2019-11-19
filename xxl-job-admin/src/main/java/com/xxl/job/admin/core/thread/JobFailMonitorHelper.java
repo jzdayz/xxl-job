@@ -45,13 +45,15 @@ public class JobFailMonitorHelper {
 				// monitor
 				while (!toStop) {
 					try {
-
+						// 找到调度失败或者执行失败的jobLog
 						List<Long> failLogIds = XxlJobAdminConfig.getAdminConfig().getXxlJobLogDao().findFailJobLogIds(1000);
 						if (failLogIds!=null && !failLogIds.isEmpty()) {
 							for (long failLogId: failLogIds) {
 
 								// lock log
+								// 锁住当前的错误日志
 								int lockRet = XxlJobAdminConfig.getAdminConfig().getXxlJobLogDao().updateAlarmStatus(failLogId, 0, -1);
+								// 锁住失败
 								if (lockRet < 1) {
 									continue;
 								}
@@ -68,6 +70,7 @@ public class JobFailMonitorHelper {
 
 								// 2、fail alarm monitor
 								int newAlarmStatus = 0;		// 告警状态：0-默认、-1=锁定状态、1-无需告警、2-告警成功、3-告警失败
+								// 有告警邮箱
 								if (info!=null && info.getAlarmEmail()!=null && info.getAlarmEmail().trim().length()>0) {
 									boolean alarmResult = true;
 									try {
@@ -80,11 +83,12 @@ public class JobFailMonitorHelper {
 								} else {
 									newAlarmStatus = 1;
 								}
-
+								// 修改锁定的日志的告警状态
 								XxlJobAdminConfig.getAdminConfig().getXxlJobLogDao().updateAlarmStatus(failLogId, -1, newAlarmStatus);
 							}
 						}
 
+						// 睡眠10s
 						TimeUnit.SECONDS.sleep(10);
 					} catch (Exception e) {
 						if (!toStop) {

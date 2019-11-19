@@ -39,6 +39,7 @@ public class ExecutorBizImpl implements ExecutorBiz {
             isRunningOrHasQueue = true;
         }
 
+        // jobId对应的执行线程，正在run
         if (isRunningOrHasQueue) {
             return new ReturnT<String>(ReturnT.FAIL_CODE, "job thread is running or has trigger queue.");
         }
@@ -69,6 +70,7 @@ public class ExecutorBizImpl implements ExecutorBiz {
     @Override
     public ReturnT<String> run(TriggerParam triggerParam) {
         // load old：jobHandler + jobThread
+        // 获取jobId对应执行线程
         JobThread jobThread = XxlJobExecutor.loadJobThread(triggerParam.getJobId());
         IJobHandler jobHandler = jobThread!=null?jobThread.getHandler():null;
         String removeOldReason = null;

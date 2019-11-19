@@ -14,6 +14,12 @@ import java.util.List;
  */
 public class ExecutorRouteBusyover extends ExecutorRouter {
 
+    /**
+     *  轮训所有的地址，根据对应的jobId探测哪个执行器，没有任务在跑，那么就返回该地址
+     *
+     *  waring: 这个策略，如果都在跑的话，那么就返回的失败，也就意味着任务调度失败了，其实可以
+     *  返回每个执行器，对应job线程的任务数量，进行比对，最少的地址就返回
+     */
     @Override
     public ReturnT<String> route(TriggerParam triggerParam, List<String> addressList) {
         StringBuffer idleBeatResultSB = new StringBuffer();

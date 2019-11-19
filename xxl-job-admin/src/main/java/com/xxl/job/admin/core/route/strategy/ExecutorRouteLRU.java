@@ -25,6 +25,7 @@ public class ExecutorRouteLRU extends ExecutorRouter {
     public String route(int jobId, List<String> addressList) {
 
         // cache clear
+        // 一天有效缓存
         if (System.currentTimeMillis() > CACHE_VALID_TIME) {
             jobLRUMap.clear();
             CACHE_VALID_TIME = System.currentTimeMillis() + 1000*60*60*24;
@@ -43,12 +44,14 @@ public class ExecutorRouteLRU extends ExecutorRouter {
         }
 
         // put new
+        // 放入之前cache没有的address
         for (String address: addressList) {
             if (!lruItem.containsKey(address)) {
                 lruItem.put(address, address);
             }
         }
         // remove old
+        // 移除失效的address
         List<String> delKeys = new ArrayList<>();
         for (String existKey: lruItem.keySet()) {
             if (!addressList.contains(existKey)) {
@@ -62,6 +65,7 @@ public class ExecutorRouteLRU extends ExecutorRouter {
         }
 
         // load
+        // 返回linkedHashMap的第一个元素，也就是LRU最"冷"的那个元素
         String eldestKey = lruItem.entrySet().iterator().next().getKey();
         String eldestValue = lruItem.get(eldestKey);
         return eldestValue;

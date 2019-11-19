@@ -11,6 +11,11 @@ import java.util.List;
 
 /**
  * Created by xuxueli on 17/3/10.
+ *
+ *  故障转移
+ *  对组下面的执行器，进行轮询心跳，心跳成功，那么返回该地址
+ *  好处：可以在调度之前保证，调度的机器是存活的
+ *  坏处：请求会频繁打到第一个执行器
  */
 public class ExecutorRouteFailover extends ExecutorRouter {
 

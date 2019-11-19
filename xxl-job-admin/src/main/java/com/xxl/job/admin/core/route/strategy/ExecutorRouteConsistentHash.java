@@ -69,7 +69,9 @@ public class ExecutorRouteConsistentHash extends ExecutorRouter {
         }
 
         long jobHash = hash(String.valueOf(jobId));
+        // 获取大于等于jobHash的所有值，并且封装为一个容器
         SortedMap<Long, String> lastRing = addressRing.tailMap(jobHash);
+        // 获取对应jobId，addressHash值最小的addressHash
         if (!lastRing.isEmpty()) {
             return lastRing.get(lastRing.firstKey());
         }

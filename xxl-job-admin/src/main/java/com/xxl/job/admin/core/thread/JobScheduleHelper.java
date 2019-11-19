@@ -62,6 +62,7 @@ public class JobScheduleHelper {
                         }
                         conn.setAutoCommit(false);
 
+                        // 数据库排他锁，保证调度在多机环境下只有一个在调度
                         preparedStatement = conn.prepareStatement(  "select * from xxl_job_lock where lock_name = 'schedule_lock' for update" );
                         preparedStatement.execute();
 

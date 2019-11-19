@@ -23,6 +23,7 @@ public class ExecutorRouteLFU extends ExecutorRouter {
     public String route(int jobId, List<String> addressList) {
 
         // cache clear
+        // 一天有效的缓存
         if (System.currentTimeMillis() > CACHE_VALID_TIME) {
             jobLfuMap.clear();
             CACHE_VALID_TIME = System.currentTimeMillis() + 1000*60*60*24;
@@ -36,11 +37,14 @@ public class ExecutorRouteLFU extends ExecutorRouter {
         }
 
         // put new
+        // 放入新的执行器的地址，如果该地址之前没有的话
         for (String address: addressList) {
+            // 新地址 || 使用频率大于1000000
             if (!lfuItemMap.containsKey(address) || lfuItemMap.get(address) >1000000 ) {
                 lfuItemMap.put(address, new Random().nextInt(addressList.size()));  // 初始化时主动Random一次，缓解首次压力
             }
         }
+        // 将过期的地址清除
         // remove old
         List<String> delKeys = new ArrayList<>();
         for (String existKey: lfuItemMap.keySet()) {
@@ -55,6 +59,7 @@ public class ExecutorRouteLFU extends ExecutorRouter {
         }
 
         // load least userd count address
+        // 自然数排序
         List<Map.Entry<String, Integer>> lfuItemList = new ArrayList<Map.Entry<String, Integer>>(lfuItemMap.entrySet());
         Collections.sort(lfuItemList, new Comparator<Map.Entry<String, Integer>>() {
             @Override
@@ -63,10 +68,13 @@ public class ExecutorRouteLFU extends ExecutorRouter {
             }
         });
 
+        // 获取自然数最小的哪个，也就是使用次数最小的那个
         Map.Entry<String, Integer> addressItem = lfuItemList.get(0);
         String minAddress = addressItem.getKey();
+        // +1
         addressItem.setValue(addressItem.getValue() + 1);
 
+        // 返回地址
         return addressItem.getKey();
     }
 

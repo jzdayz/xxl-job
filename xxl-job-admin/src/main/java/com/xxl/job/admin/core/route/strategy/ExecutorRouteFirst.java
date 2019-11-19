@@ -11,6 +11,9 @@ import java.util.List;
  */
 public class ExecutorRouteFirst extends ExecutorRouter {
 
+    /**
+     *   直接给到第一个地址
+     */
     @Override
     public ReturnT<String> route(TriggerParam triggerParam, List<String> addressList){
         return new ReturnT<String>(addressList.get(0));
