@@ -68,21 +68,27 @@ public class XxlJobExecutor  {
     public void start() throws Exception {
 
         // init logpath
+        // 设置日志文件夹
         XxlJobFileAppender.initLogPath(logPath);
 
         // init invoker, admin-client
+        // 初始化调用admin的rpc 对象
         initAdminBizList(adminAddresses, accessToken);
 
 
         // init JobLogFileCleanThread
+        // 初始化日志文件清理后台线程
         JobLogFileCleanThread.getInstance().start(logRetentionDays);
 
         // init TriggerCallbackThread
+        // callback线程启动，callback重试线程启动
         TriggerCallbackThread.getInstance().start();
 
         // init executor-server
+        // 推断出合理的port
         port = port>0?port: NetUtil.findAvailablePort(9999);
         ip = (ip!=null&&ip.trim().length()>0)?ip: IpUtil.getIp();
+        // 初始化rpc被调用端的逻辑
         initRpcProvider(ip, port, appName, accessToken);
     }
     public void destroy(){
@@ -114,13 +120,14 @@ public class XxlJobExecutor  {
     private static List<AdminBiz> adminBizList;
     private static Serializer serializer;
     private void initAdminBizList(String adminAddresses, String accessToken) throws Exception {
+        // hessian序列化
         serializer = Serializer.SerializeEnum.HESSIAN.getSerializer();
         if (adminAddresses!=null && adminAddresses.trim().length()>0) {
             for (String address: adminAddresses.trim().split(",")) {
                 if (address!=null && address.trim().length()>0) {
 
                     String addressUrl = address.concat(AdminBiz.MAPPING);
-
+                    // 将adminBiz的操作映射到远程的http接口
                     AdminBiz adminBiz = (AdminBiz) new XxlRpcReferenceBean(
                             NetEnum.NETTY_HTTP,
                             serializer,
@@ -171,9 +178,12 @@ public class XxlJobExecutor  {
         serviceRegistryParam.put("address", address);
 
         xxlRpcProviderFactory = new XxlRpcProviderFactory();
+        // 协议: http 数据格式化: hessian
         xxlRpcProviderFactory.initConfig(NetEnum.NETTY_HTTP, Serializer.SerializeEnum.HESSIAN.getSerializer(), ip, port, accessToken, ExecutorServiceRegistry.class, serviceRegistryParam);
 
         // add services
+        // 注册 com.xxl.job.core.biz.ExecutorBiz -> ExecutorBizImpl
+        // admin调度的时候会调用ExecutorBizImpl的方法
         xxlRpcProviderFactory.addService(ExecutorBiz.class.getName(), null, new ExecutorBizImpl());
 
         // start

@@ -22,9 +22,12 @@ public class XxlJobSpringExecutor extends XxlJobExecutor implements ApplicationC
     public void start() throws Exception {
 
         // init JobHandler Repository
+        // 注册jobHandler
         initJobHandlerRepository(applicationContext);
 
         // refresh GlueFactory
+        // 设置GLUE的解析为spring解析，
+        // 根据@Resource 和 @Autowired解析字段
         GlueFactory.refreshInstance(1);
 
 

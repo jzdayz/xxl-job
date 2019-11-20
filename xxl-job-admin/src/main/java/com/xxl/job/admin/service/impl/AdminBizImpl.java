@@ -40,6 +40,7 @@ public class AdminBizImpl implements AdminBiz {
     @Override
     public ReturnT<String> callback(List<HandleCallbackParam> callbackParamList) {
         for (HandleCallbackParam handleCallbackParam: callbackParamList) {
+            // 修改执行的结果
             ReturnT<String> callbackResult = callback(handleCallbackParam);
             logger.debug(">>>>>>>>> JobApiController.callback {}, handleCallbackParam={}, callbackResult={}",
                     (callbackResult.getCode()==IJobHandler.SUCCESS.getCode()?"success":"fail"), handleCallbackParam, callbackResult);
@@ -50,10 +51,12 @@ public class AdminBizImpl implements AdminBiz {
 
     private ReturnT<String> callback(HandleCallbackParam handleCallbackParam) {
         // valid log item
+        // 先将之前调度的日志拿出来，准备修改执行的结果
         XxlJobLog log = xxlJobLogDao.load(handleCallbackParam.getLogId());
         if (log == null) {
             return new ReturnT<String>(ReturnT.FAIL_CODE, "log item not found.");
         }
+        // 防止重复callBack
         if (log.getHandleCode() > 0) {
             return new ReturnT<String>(ReturnT.FAIL_CODE, "log repeate callback.");     // avoid repeat callback, trigger child job etc
         }
@@ -61,15 +64,17 @@ public class AdminBizImpl implements AdminBiz {
         // trigger success, to trigger child job
         String callbackMsg = null;
         if (IJobHandler.SUCCESS.getCode() == handleCallbackParam.getExecuteResult().getCode()) {
+            // load info
             XxlJobInfo xxlJobInfo = xxlJobInfoDao.loadById(log.getJobId());
+            // 是否含有子任务
             if (xxlJobInfo!=null && xxlJobInfo.getChildJobId()!=null && xxlJobInfo.getChildJobId().trim().length()>0) {
                 callbackMsg = "<br><br><span style=\"color:#00c0ef;\" > >>>>>>>>>>>"+ I18nUtil.getString("jobconf_trigger_child_run") +"<<<<<<<<<<< </span><br>";
-
+                // 多个子任务
                 String[] childJobIds = xxlJobInfo.getChildJobId().split(",");
                 for (int i = 0; i < childJobIds.length; i++) {
                     int childJobId = (childJobIds[i]!=null && childJobIds[i].trim().length()>0 && isNumeric(childJobIds[i]))?Integer.valueOf(childJobIds[i]):-1;
                     if (childJobId > 0) {
-
+                        // 触发任务
                         JobTriggerPoolHelper.trigger(childJobId, TriggerTypeEnum.PARENT, -1, null, null);
                         ReturnT<String> triggerChildResult = ReturnT.SUCCESS;
 
@@ -107,6 +112,7 @@ public class AdminBizImpl implements AdminBiz {
         log.setHandleTime(new Date());
         log.setHandleCode(handleCallbackParam.getExecuteResult().getCode());
         log.setHandleMsg(handleMsg.toString());
+        // 修改执行器执行的结果
         xxlJobLogDao.updateHandleInfo(log);
 
         return ReturnT.SUCCESS;

@@ -33,7 +33,12 @@ public class TriggerCallbackThread {
      * job results callback queue
      */
     private LinkedBlockingQueue<HandleCallbackParam> callBackQueue = new LinkedBlockingQueue<HandleCallbackParam>();
+
+    /**
+     *  加入callback 队列
+     */
     public static void pushCallBack(HandleCallbackParam callback){
+        // 加入callback 队列
         getInstance().callBackQueue.add(callback);
         logger.debug(">>>>>>>>>>> xxl-job, push callback request, logId:{}", callback.getLogId());
     }
@@ -47,12 +52,14 @@ public class TriggerCallbackThread {
     public void start() {
 
         // valid
+        // 没有设置 admin的地址
         if (XxlJobExecutor.getAdminBizList() == null) {
             logger.warn(">>>>>>>>>>> xxl-job, executor callback config fail, adminAddresses is null.");
             return;
         }
 
         // callback
+        // callback 处理线程
         triggerCallbackThread = new Thread(new Runnable() {
 
             @Override
@@ -66,11 +73,13 @@ public class TriggerCallbackThread {
 
                             // callback list param
                             List<HandleCallbackParam> callbackParamList = new ArrayList<HandleCallbackParam>();
+                            // 将队列中的元素倒入list
                             int drainToNum = getInstance().callBackQueue.drainTo(callbackParamList);
                             callbackParamList.add(callback);
 
                             // callback, will retry if error
                             if (callbackParamList!=null && callbackParamList.size()>0) {
+                                // 回调通知结果
                                 doCallback(callbackParamList);
                             }
                         }
@@ -81,6 +90,7 @@ public class TriggerCallbackThread {
                     }
                 }
 
+                // 线程收到stop之后，再次尝试callback，以防有漏掉的
                 // last callback
                 try {
                     List<HandleCallbackParam> callbackParamList = new ArrayList<HandleCallbackParam>();
@@ -103,11 +113,13 @@ public class TriggerCallbackThread {
 
 
         // retry
+        // callback重试
         triggerRetryCallbackThread = new Thread(new Runnable() {
             @Override
             public void run() {
                 while(!toStop){
                     try {
+                        // 读取存在文件中的callback信息，进行重试
                         retryFailCallbackFile();
                     } catch (Exception e) {
                         if (!toStop) {
@@ -161,12 +173,20 @@ public class TriggerCallbackThread {
     private void doCallback(List<HandleCallbackParam> callbackParamList){
         boolean callbackRet = false;
         // callback, will retry if error
+        // 这里在多个调度中心中回调一个即可
+        // 因为xxl-job主要依赖db，db得是单点的，回调一个admin，那么其他的也会同步
+
+        // 思考:可以做数据库主从，但是排它锁不行
+        //     如果排它锁拓展分布式锁，那么就可以做到"真"分布式
+        //     但是一般一台DB足够了
         for (AdminBiz adminBiz: XxlJobExecutor.getAdminBizList()) {
             try {
+                // 回调admin修改执行结果
                 ReturnT<String> callbackResult = adminBiz.callback(callbackParamList);
                 if (callbackResult!=null && ReturnT.SUCCESS_CODE == callbackResult.getCode()) {
                     callbackLog(callbackParamList, "<br>----------- xxl-job job callback finish.");
                     callbackRet = true;
+                    // 一个回调成功，即为成功
                     break;
                 } else {
                     callbackLog(callbackParamList, "<br>----------- xxl-job job callback fail, callbackResult:" + callbackResult);
@@ -175,7 +195,9 @@ public class TriggerCallbackThread {
                 callbackLog(callbackParamList, "<br>----------- xxl-job job callback error, errorMsg:" + e.getMessage());
             }
         }
+        // 未回调成功
         if (!callbackRet) {
+            // 参数存在文件中
             appendFailCallbackFile(callbackParamList);
         }
     }
@@ -193,10 +215,15 @@ public class TriggerCallbackThread {
 
 
     // ---------------------- fail-callback file ----------------------
-
+    // {logPath}/callbacklog/
     private static String failCallbackFilePath = XxlJobFileAppender.getLogPath().concat(File.separator).concat("callbacklog").concat(File.separator);
+    // {logPath}/callbacklog/xxl-job-callback-{x}.log
     private static String failCallbackFileName = failCallbackFilePath.concat("xxl-job-callback-{x}").concat(".log");
 
+    /**
+     *  将错误回调的参数，序列话进文件
+     *  目录为： {logPath}/callbacklog
+     */
     private void appendFailCallbackFile(List<HandleCallbackParam> callbackParamList){
         // valid
         if (callbackParamList==null || callbackParamList.size()==0) {
@@ -207,6 +234,8 @@ public class TriggerCallbackThread {
         byte[] callbackParamList_bytes = XxlJobExecutor.getSerializer().serialize(callbackParamList);
 
         File callbackLogFile = new File(failCallbackFileName.replace("{x}", String.valueOf(System.currentTimeMillis())));
+        // 如果 {logPath}/callbacklog/xxl-job-callback-{x}.log 文件存在，意味着同一时间点有多个线程调用了这段代码，
+        // 那么在文件名后面加index
         if (callbackLogFile.exists()) {
             for (int i = 0; i < 100; i++) {
                 callbackLogFile = new File(failCallbackFileName.replace("{x}", String.valueOf(System.currentTimeMillis()).concat("-").concat(String.valueOf(i)) ));
@@ -218,6 +247,9 @@ public class TriggerCallbackThread {
         FileUtil.writeFileContent(callbackLogFile, callbackParamList_bytes);
     }
 
+    /**
+     *  读取之前存在文件中的callback参数，然后重试callback
+     */
     private void retryFailCallbackFile(){
 
         // valid

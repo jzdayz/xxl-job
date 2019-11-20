@@ -31,12 +31,18 @@ public class JobScheduleHelper {
     private Thread ringThread;
     private volatile boolean scheduleThreadToStop = false;
     private volatile boolean ringThreadToStop = false;
+    // key: 秒 value: 任务的ID
     private volatile static Map<Integer, List<Integer>> ringData = new ConcurrentHashMap<>();
 
     public void start(){
 
         // schedule thread
         // 任务调度线程
+        // 1: 任务过期5s，那么直接丢弃，用当前时间计算下次应该触发的时间
+        // 2: 过期还未到5s，那么直接调度一次，然后看下次执行的时间是否在5s内，如果是，那么扔进执行队列，执行队列判断执行
+        // 3: 直接扔进队列，修改数据库下次执行的时间
+        // 这个线程主要是执行数据库交互，然后预热任务，将任务扔进具体的执行队列
+        // 注意：这里的队列其实指的map，不过队列会比较形象 key: 执行的秒 value: jobId
         scheduleThread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -68,8 +74,8 @@ public class JobScheduleHelper {
 
                         // tx start
 
-                        // 1、预读5s内调度任务
                         long nowTime = System.currentTimeMillis();
+                        // 1、预读5s内调度任务
                         List<XxlJobInfo> scheduleList = XxlJobAdminConfig.getAdminConfig().getXxlJobInfoDao().scheduleJobQuery(nowTime + PRE_READ_MS);
                         if (scheduleList!=null && scheduleList.size()>0) {
                             // 2、推送时间轮
@@ -81,7 +87,7 @@ public class JobScheduleHelper {
                                     // 过期超5s：本地忽略，当前时间开始计算下次触发时间
 
                                     // fresh next
-                                    // 直接为job设置下次触发时间
+                                    // 直接为job设置下次有效触发时间
                                     jobInfo.setTriggerLastTime(jobInfo.getTriggerNextTime());
                                     jobInfo.setTriggerNextTime(
                                             new CronExpression(jobInfo.getJobCron())
@@ -105,16 +111,19 @@ public class JobScheduleHelper {
                                     jobInfo.setTriggerNextTime(nextTime);
 
 
-                                    // 下次5s内：预读一次；
+                                    // 下次触发的任务时间点在5秒内
                                     if (jobInfo.getTriggerNextTime() - nowTime < PRE_READ_MS) {
 
                                         // 1、make ring second
+                                        // 获取下次任务执行时间的秒
                                         int ringSecond = (int)((jobInfo.getTriggerNextTime()/1000)%60);
 
                                         // 2、push time ring
+                                        // 将下次执行的秒为key，jobId为value存在map中
                                         pushTimeRing(ringSecond, jobInfo.getId());
 
                                         // 3、fresh next
+                                        // 相当于是计算"下下次"的，因为"下一次"已经被推到队列等待执行了。
                                         jobInfo.setTriggerLastTime(jobInfo.getTriggerNextTime());
                                         jobInfo.setTriggerNextTime(
                                                 new CronExpression(jobInfo.getJobCron())
@@ -211,12 +220,16 @@ public class JobScheduleHelper {
 
         // ring thread
         // 从队列中获取任务，进行触发
+        // 1: 根据当前秒数，拿出当前秒应该执行的任务，直接调度
+        // warn: 有个问题就是，如果这秒任务太多的话，执行超过两秒，就必须等60秒，才能再次调度到，
+        // 但是这种情况几乎很难出现，因为调度有专门的调度线程
         ringThread = new Thread(new Runnable() {
             @Override
             public void run() {
 
                 // align second
                 try {
+                    // 休眠到下一秒
                     TimeUnit.MILLISECONDS.sleep(1000 - System.currentTimeMillis()%1000 );
                 } catch (InterruptedException e) {
                     if (!ringThreadToStop) {
@@ -230,6 +243,7 @@ public class JobScheduleHelper {
                         // second data
                         List<Integer> ringItemData = new ArrayList<>();
                         int nowSecond = Calendar.getInstance().get(Calendar.SECOND);   // 避免处理耗时太长，跨过刻度，向前校验一个刻度；
+                        // 将当前秒以及前一秒的任务拿出来进行调度
                         for (int i = 0; i < 2; i++) {
                             List<Integer> tmpData = ringData.remove( (nowSecond+60-i)%60 );
                             if (tmpData != null) {
@@ -256,6 +270,7 @@ public class JobScheduleHelper {
 
                     // next second, align second
                     try {
+                        // 睡眠到下一秒
                         TimeUnit.MILLISECONDS.sleep(1000 - System.currentTimeMillis()%1000);
                     } catch (InterruptedException e) {
                         if (!ringThreadToStop) {

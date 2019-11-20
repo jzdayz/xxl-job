@@ -37,6 +37,9 @@ public class JobFailMonitorHelper {
 	private Thread monitorThread;
 	private volatile boolean toStop = false;
 	public void start(){
+		// 后台告警监控,任务重试线程
+		// 1: 处理重试
+		// 2: 处理告警 ——> 如果告警失败，也会重试告警
 		monitorThread = new Thread(new Runnable() {
 
 			@Override
@@ -61,10 +64,12 @@ public class JobFailMonitorHelper {
 								XxlJobInfo info = XxlJobAdminConfig.getAdminConfig().getXxlJobInfoDao().loadById(log.getJobId());
 
 								// 1、fail retry monitor
+								// 如果可以重试的次数大于0
 								if (log.getExecutorFailRetryCount() > 0) {
 									JobTriggerPoolHelper.trigger(log.getJobId(), TriggerTypeEnum.RETRY, (log.getExecutorFailRetryCount()-1), log.getExecutorShardingParam(), null);
 									String retryMsg = "<br><br><span style=\"color:#F39C12;\" > >>>>>>>>>>>"+ I18nUtil.getString("jobconf_trigger_type_retry") +"<<<<<<<<<<< </span><br>";
 									log.setTriggerMsg(log.getTriggerMsg() + retryMsg);
+									// 记录triggerMsg
 									XxlJobAdminConfig.getAdminConfig().getXxlJobLogDao().updateTriggerInfo(log);
 								}
 
@@ -74,6 +79,7 @@ public class JobFailMonitorHelper {
 								if (info!=null && info.getAlarmEmail()!=null && info.getAlarmEmail().trim().length()>0) {
 									boolean alarmResult = true;
 									try {
+										// 失败告警
 										alarmResult = failAlarm(info, log);
 									} catch (Exception e) {
 										alarmResult = false;
@@ -145,6 +151,8 @@ public class JobFailMonitorHelper {
 
 	/**
 	 * fail alarm
+	 *
+	 *  发送告警邮箱
 	 *
 	 * @param jobLog
 	 */

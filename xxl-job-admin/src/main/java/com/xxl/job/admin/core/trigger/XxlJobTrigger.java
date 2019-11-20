@@ -156,6 +156,8 @@ public class XxlJobTrigger {
         // 4、trigger remote executor
         ReturnT<String> triggerResult = null;
         if (address != null) {
+            // 调度执行器
+            // 执行器会返回结果，不过这个结果是调度结果，因为执行器是异步执行的，执行完成后会再回调修改结果
             triggerResult = runExecutor(triggerParam, address);
         } else {
             triggerResult = new ReturnT<String>(ReturnT.FAIL_CODE, null);

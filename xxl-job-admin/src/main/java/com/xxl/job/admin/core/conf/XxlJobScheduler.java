@@ -43,15 +43,19 @@ public class XxlJobScheduler implements InitializingBean, DisposableBean {
         initI18n();
 
         // admin registry monitor run
+        // 启动管理后台注册的线程
         JobRegistryMonitorHelper.getInstance().start();
 
         // admin monitor run
+        // 后台告警监控,任务重试线程
         JobFailMonitorHelper.getInstance().start();
 
         // admin-server
+        // rpc提供端，执行器回调和注册的代码会调用
         initRpcProvider();
 
         // start-schedule
+        // 任务调度线程启动
         JobScheduleHelper.getInstance().start();
 
         logger.info(">>>>>>>>> init xxl-job admin success.");

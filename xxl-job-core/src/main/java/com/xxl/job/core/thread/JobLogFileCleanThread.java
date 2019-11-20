@@ -33,7 +33,7 @@ public class JobLogFileCleanThread {
         if (logRetentionDays < 3 ) {
             return;
         }
-
+        // 删除过期时间log的后台线程
         localThread = new Thread(new Runnable() {
             @Override
             public void run() {
