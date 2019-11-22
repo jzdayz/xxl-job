@@ -47,11 +47,16 @@ public class ExecutorRouteConsistentHash extends ExecutorRouter {
         byte[] digest = md5.digest();
 
         // hash code, Truncate to 32-bits
+        // 这个字节&0xFF 是为了避免在负数的情况下
+        // 改变long的值
+        // 比如 -1 -> 1111 1110
+        // 变成了long二进制就会变成 -> 11111111111111111111111111111111 11111111111111111111111111111110(之所以补1，主要是补1的话，十进制表示的数不会变)
+        // 这么一来将4个字节|运算，只要有一个字节是负数，那么，整个数就为负数
         long hashCode = ((long) (digest[3] & 0xFF) << 24)
                 | ((long) (digest[2] & 0xFF) << 16)
                 | ((long) (digest[1] & 0xFF) << 8)
                 | (digest[0] & 0xFF);
-
+        // 这段代码主要是将64位的long截断成32位，高32位都是0
         long truncateHashCode = hashCode & 0xffffffffL;
         return truncateHashCode;
     }
