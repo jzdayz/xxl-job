@@ -169,6 +169,7 @@ public class ExecutorBizImpl implements ExecutorBiz {
         }
 
         // push data to queue
+        // 将任务推到队列，会有专门的线程去执行。。。。
         ReturnT<String> pushResult = jobThread.pushTriggerQueue(triggerParam);
         return pushResult;
     }
