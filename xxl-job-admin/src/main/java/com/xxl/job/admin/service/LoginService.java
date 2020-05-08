@@ -15,7 +15,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.math.BigInteger;
 
 /**
- * @author xuxueli 2019-05-04 22:13:264
+ * @author xuxueli 2019-05-04 22:13:264 1
  */
 @Configuration
 public class LoginService {
