@@ -7,10 +7,7 @@ import com.xxl.job.core.enums.RegistryConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -46,18 +43,21 @@ public class JobRegistryMonitorHelper {
 
 							// 移除数据库中注册时间离现在时间大于90秒的执行器 (执行器会定时向admin进行注册)
 							// remove dead address (admin/executor)
-							XxlJobAdminConfig.getAdminConfig().getXxlJobRegistryDao().removeDead(RegistryConfig.DEAD_TIMEOUT);
+							List<Integer> ids = XxlJobAdminConfig.getAdminConfig().getXxlJobRegistryDao().findDead(RegistryConfig.DEAD_TIMEOUT, new Date());
+							if (ids!=null && ids.size()>0) {
+								XxlJobAdminConfig.getAdminConfig().getXxlJobRegistryDao().removeDead(ids);
+							}
 
 							// fresh online address (admin/executor)
 							// appName -> list(executor address)
 							HashMap<String, List<String>> appAddressMap = new HashMap<String, List<String>>();
 							// 查询出存活的注册执行器
-							List<XxlJobRegistry> list = XxlJobAdminConfig.getAdminConfig().getXxlJobRegistryDao().findAll(RegistryConfig.DEAD_TIMEOUT);
+							List<XxlJobRegistry> list = XxlJobAdminConfig.getAdminConfig().getXxlJobRegistryDao().findAll(RegistryConfig.DEAD_TIMEOUT, new Date());
 							if (list != null) {
 								for (XxlJobRegistry item: list) {
 									if (RegistryConfig.RegistType.EXECUTOR.name().equals(item.getRegistryGroup())) {
-										String appName = item.getRegistryKey();
-										List<String> registryList = appAddressMap.get(appName);
+										String appname = item.getRegistryKey();
+										List<String> registryList = appAddressMap.get(appname);
 										if (registryList == null) {
 											registryList = new ArrayList<String>();
 										}
@@ -65,7 +65,7 @@ public class JobRegistryMonitorHelper {
 										if (!registryList.contains(item.getRegistryValue())) {
 											registryList.add(item.getRegistryValue());
 										}
-										appAddressMap.put(appName, registryList);
+										appAddressMap.put(appname, registryList);
 									}
 								}
 							}
@@ -73,7 +73,7 @@ public class JobRegistryMonitorHelper {
 							// fresh group address
 							// 更新组的信息   组下面对应的ip list
 							for (XxlJobGroup group: groupList) {
-								List<String> registryList = appAddressMap.get(group.getAppName());
+								List<String> registryList = appAddressMap.get(group.getAppname());
 								String addressListStr = null;
 								if (registryList!=null && !registryList.isEmpty()) {
 									Collections.sort(registryList);
